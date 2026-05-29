@@ -37,3 +37,28 @@ jobs:
         run: |
           docker build -t ghcr.io/sebastianmunt/hello-maven:latest .
           docker push ghcr.io/sebastianmunt/hello-maven:latest
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            docker pull ghcr.io/sebastianmunt/hello-maven:latest
+
+            docker stop myapp 2>/dev/null || true
+            docker rm myapp 2>/dev/null || true
+
+            docker run -d \
+              --name myapp \
+              -p 80:8080 \
+              --restart unless-stopped \
+              ghcr.io/sebastianmunt/hello-maven:latest
+
+            docker image prune -f
